@@ -4,7 +4,7 @@
 
 This repository contains coursework completed for **ANA 610: Data Management for Analytics**, a graduate-level course focused on the **end-to-end preparation of data for analytical and machine learning projects** using SAS and R Studio.
 
-The course emphasized that effective analytics depend on **data quality, structure, and integrity**, with hands-on work covering the full data management lifecycle—from acquisition through feature readiness.
+The course emphasized that effective analytics depend on **data quality, structure, and integrity**, with hands-on work covering the full data management lifecycle from acquisition through feature readiness.
 
 ### Topics and skills developed include:
 
