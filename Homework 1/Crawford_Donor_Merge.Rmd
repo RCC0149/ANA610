@@ -1,0 +1,79 @@
+---
+title: "ANA 610-Homework 1"
+author: "Randall Crawford"
+date: "12/4/2024"
+output: word_document
+editor_options: 
+  markdown: 
+    wrap: sentence
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# Load and install required packages
+library(knitr)
+library(mosaic)
+library(effsize)
+library(supernova)
+library(lsr)
+library(dplyr)
+library(ggplot2)
+library(ggformula)
+library(data.table)
+library(haven)
+library(tidyverse)
+library(tidyr)
+
+## Read In Donor Data Files
+
+###Donor .csv Files
+myDataLocation <- "C:\\Program Files\\R\\ANA 610\\Module 1\\Homework 1\\Data"
+setwd(myDataLocation)
+profile_dat <- read.csv(file = "donor_profile2.csv", header = TRUE)
+history_dat <- read.csv(file = "donor_history2.csv", header = TRUE)
+survey_dat <- read.csv(file = "donor_survey2.csv", header = TRUE)
+
+### Donor .sas7bdat File
+path <- "C:\\Program Files\\R\\ANA 610\\Module 1\\Homework 1\\Data\\donor_census2.sas7bdat"
+census_sas <- haven::read_sas(path)
+census_dat <- as.data.frame(census_sas)
+```
+
+```{r}
+#Overview of Donor data files.
+str(profile_dat)
+head(profile_dat, 10)
+str(history_dat)
+head(history_dat, 10)
+str(survey_dat)
+head(survey_dat, 10)
+str(census_dat)
+head(census_dat, 10)
+```
+
+```{r}
+#Covert census_dat CONTROL_NUMBER to a numeric variable.
+census_dat$CONTROL_NUMBER <- as.numeric(census_dat$CONTROL_NUMBER)
+str(census_dat)
+```
+```{r}
+survey_pivot <- pivot_wider(survey_dat,
+  names_from = survey_question,
+  values_from = survey_value,
+)
+str(survey_pivot)
+```
+```{r}
+#Put all data frames into list.
+donor_list <- list(profile_dat, history_dat, census_dat, survey_pivot)
+
+#Merge all data frames in list.
+donor_master <- donor_list %>% reduce(full_join, by='CONTROL_NUMBER')
+
+str(donor_master)
+```
+```{r}
+#Save donor_master dataframe as a .RData file.
+save(donor_master, file="C:\\Users\\rcc_0\\OneDrive\\Desktop\\Crawford_from_R.RData")
+```
