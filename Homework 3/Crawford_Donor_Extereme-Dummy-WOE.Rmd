@@ -1,0 +1,180 @@
+---
+title: "ANA 610-Homework 3"
+author: "Randall Crawford"
+date: "12/16/2024"
+output: word_document
+editor_options: 
+  markdown: 
+    wrap: sentence
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# Load and install required packages
+library(knitr)
+library(mosaic)
+library(effsize)
+library(supernova)
+library(lsr)
+library(dplyr)
+library(ggplot2)
+library(ggformula)
+library(data.table)
+library(haven)
+library(tidyverse)
+library(tidyr)
+library(lubridate)
+library(VIM)
+library(outliers)
+
+## Read in Donor data file.
+
+### Donor .sas7bdat File
+path <- "C:\\Program Files\\R\\ANA 610\\Module 3\\Homework 3\\Data\\s_pml_donor_hw_v3.sas7bdat"
+donor_sas <- haven::read_sas(path)
+donor_dat <- as.data.frame(donor_sas)
+```
+
+```{r}
+#Overview of Donor data file.
+str(donor_dat)
+head(donor_dat, 10)
+```
+
+```{r}
+#3.	Third, using R, summarize your findings from the 5th extreme value checking method, the Grubbs test.  
+#Use grubbs.test() from the outlier package.  Show your neatly formatted R generated output here, which 
+#supports your findings.
+
+#Initial Test
+donor_dat_ev <- donor_dat
+test <- outliers::grubbs.test(donor_dat_ev$LIFETIME_GIFT_AMOUNT)
+test
+```
+
+```{r}
+#1st Estimation Test
+donor_dat_ev2 <- dplyr::filter(donor_dat_ev, LIFETIME_GIFT_AMOUNT < 1887.5)
+test2 <- outliers::grubbs.test(donor_dat_ev2$LIFETIME_GIFT_AMOUNT)
+test2
+```
+
+```{r}
+#2nd Estimation Test (Clustering)
+donor_dat_ev3 <- dplyr::filter(donor_dat_ev, LIFETIME_GIFT_AMOUNT < 945)
+test3 <- outliers::grubbs.test(donor_dat_ev3$LIFETIME_GIFT_AMOUNT)
+test3
+```
+
+```{r}
+#3rd Estimation Test (PROC EYEBALL)
+donor_dat_ev4 <- dplyr::filter(donor_dat_ev, LIFETIME_GIFT_AMOUNT < 750)
+test4 <- outliers::grubbs.test(donor_dat_ev4$LIFETIME_GIFT_AMOUNT)
+test4
+```
+
+```{r}
+#4th Estimation Test (Top/Bottom 1%)
+donor_dat_ev5 <- dplyr::filter(donor_dat_ev, LIFETIME_GIFT_AMOUNT < 491)
+test5 <- outliers::grubbs.test(donor_dat_ev5$LIFETIME_GIFT_AMOUNT)
+test5
+```
+
+```{r}
+#4th Estimation Test (IQR*3)
+donor_dat_ev6 <- dplyr::filter(donor_dat_ev, LIFETIME_GIFT_AMOUNT < 402)
+test6 <- outliers::grubbs.test(donor_dat_ev6$LIFETIME_GIFT_AMOUNT)
+test6
+```
+
+```{r}
+#Final Estimation Test
+donor_dat_ev7 <- dplyr::filter(donor_dat_ev, LIFETIME_GIFT_AMOUNT < 431)
+test7 <- outliers::grubbs.test(donor_dat_ev7$LIFETIME_GIFT_AMOUNT)
+test7
+```
+
+```{r}
+#Show number of extreme value information.
+tally(~LIFETIME_GIFT_AMOUNT < 431, data = donor_dat_ev)
+tally(~LIFETIME_GIFT_AMOUNT < 431, data = donor_dat_ev, format = "proportion")
+```
+
+```{r}
+dummy_dat <- donor_dat
+
+#Find freq by RECENT_STAR_STATUS.
+
+dummy_dat <- dplyr::add_count(donor_dat, donor_dat$RECENT_STAR_STATUS, name='Count')
+
+#Use index variable in a do loop to populate dum_RSS0-dun_RSS22.
+
+for(i in unique(dummy_dat$RECENT_STAR_STATUS)) {
+  dummy_dat[[paste0("dum_RSS",i)]] <- ifelse(dummy_dat$RECENT_STAR_STATUS==i & dummy_dat$Count > 30,1,0)
+}
+
+#Create "other" dummy variable and merge with master.
+
+dummy_other <- dplyr::select(dummy_dat, starts_with("dum_RSS"))
+dummy_other$row.sum <- rowSums(dummy_other[,])
+dummy_other$dum_RSS_other <- ifelse(dummy_other$row.sum==0,1,0)
+dummy_other <- dplyr::select(dummy_other, dum_RSS_other)
+dummy_dat <- merge(dummy_dat, dummy_other, by.x=0, by.y=0)
+```
+
+```{r}
+dummy_stats <- dplyr::select(dummy_dat, starts_with("dum_RSS"))
+dummy_display <- summarytools::descr(dummy_stats, transpose=TRUE, stats=c("min", "max", "mean", "sd"), headings=F)
+dummy_display <- dplyr::arrange(dummy_display, desc(Std.Dev))
+dummy_display
+```
+
+```{r}
+dummy_sums <- dplyr::summarize_all(dummy_stats, sum)
+dummy_sums <- tidyr::gather(dummy_sums, key="RSS_Dummy", value="Sum")
+dummy_sums <- dplyr::arrange(dummy_sums, desc(Sum))
+dummy_sums
+```
+
+#Task #3
+
+Using R, create a WOE table for RECENT_STAR_STATUS which applies an overall threshold of 30.
+1.	Show here an R-generated, neatly formatted output table which has columns (i) RECENT_STAR_STATUS category; 
+(ii) total frequency; (iii) frequency TARGET_B = 1; (iv) frequency TARGET_B = 0; (v) odds ratio; (vi) WOE; and 
+(vii) information value.
+```{r}
+# Compute weight of evidence (sparsity?).
+donor_temp <- donor_dat
+donor_temp$COUNT <- 1
+
+## Find frequency counts and put into a new dataframe.
+donor_woe <- donor_temp %>%
+  group_by(RECENT_STAR_STATUS) %>%
+  dplyr::summarize(Total=sum(COUNT), Target_Yes=sum(TARGET_B))
+
+## Create OR and WOE.
+donor_woe$Target_No       <- donor_woe$Total - donor_woe$Target_Yes
+donor_woe$Target_Yes_Tot  <- sum(donor_woe$Target_Yes)
+donor_woe$Target_No_Tot   <- sum(donor_woe$Target_No)
+donor_woe$OR_Tot          <- donor_woe$Target_Yes_Tot/donor_woe$Target_No_Tot
+donor_woe$OR              <- ifelse(donor_woe$Total>30,(donor_woe$Target_Yes/donor_woe$Target_No)/donor_woe$OR_Tot,1)
+donor_woe$WOE             <- log(donor_woe$OR)
+donor_woe$IV              <- ((donor_woe$Target_Yes/donor_woe$Target_Yes_Tot)-(donor_woe$Target_No/donor_woe$Target_No_Tot))*donor_woe$WOE
+
+## Clean up table for presentation.
+donor_woe <- donor_woe %>% select (-Target_Yes_Tot, -Target_No_Tot, -OR_Tot)
+donor_woe
+```
+
+```{r}
+### Variable-Level IV.
+sum(donor_woe$IV)
+```
+
+```{r}
+
+```
+```{r}
+save(donor_master, file="C:\\Users\\rcc_0\\OneDrive\\Desktop\\Crawford_from_R.RData")
+```
