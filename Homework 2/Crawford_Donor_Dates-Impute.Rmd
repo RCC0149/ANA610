@@ -1,0 +1,106 @@
+---
+title: "ANA 610-Homework 2"
+author: "Randall Crawford"
+date: "12/10/2024"
+output: word_document
+editor_options: 
+  markdown: 
+    wrap: sentence
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# Load and install required packages
+library(knitr)
+library(mosaic)
+library(effsize)
+library(supernova)
+library(lsr)
+library(dplyr)
+library(ggplot2)
+library(ggformula)
+library(data.table)
+library(haven)
+library(tidyverse)
+library(tidyr)
+library(lubridate)
+library(VIM)
+
+## Read in Donor data file.
+
+### Donor .sas7bdat File
+path <- "C:\\Program Files\\R\\ANA 610\\Module 2\\Homework 2\\Data\\s_pml_donor_hw_v3.sas7bdat"
+donor_sas <- haven::read_sas(path)
+donor_dat <- as.data.frame(donor_sas)
+```
+
+```{r}
+#Overview of Donor data file.
+str(donor_dat)
+head(donor_dat, 10)
+```
+
+```{r}
+#4a.	R code for how you would create the same 3 date variables ENTRY_DATE, FIRST_GIFT_DATE and LAST_GIFT_DATE
+present = ymd("1998-09-01")
+donor_dat$ENTRY_DATE <- present-months(donor_dat$MONTHS_SINCE_ORIGIN)
+donor_dat$FIRST_GIFT_DATE <- present-months(donor_dat$MONTHS_SINCE_FIRST_GIFT)
+donor_dat$LAST_GIFT_DATE <- present-months(donor_dat$MONTHS_SINCE_LAST_GIFT)
+```
+```{r}
+#4b.	R-generated output from summary.Date() showing the min, median, mean and max values for each of these 3 date variables.
+print ("ENTRY_DATE Statistical Summary")
+summary.Date(donor_dat$ENTRY_DATE)
+print ("FIRST_GIFT_DATE Statistical Summary")
+summary.Date(donor_dat$FIRST_GIFT_DATE)
+print ("LAST_GIFT_DATE Statistical Summary")
+summary.Date(donor_dat$LAST_GIFT_DATE)
+```
+```{r}
+#5a.	R code for how you would create the variable LAST_GIFT_DATE_YEAR.
+donor_dat$LAST_GIFT_DATE_YEAR <- year(donor_dat$LAST_GIFT_DATE)
+```
+```{r}
+#5b.	R-generated output showing the mean LAST_GIFT_AMT by LAST_GIFT_DATE_YEAR. 
+aggregate(donor_dat$LAST_GIFT_AMT, list(donor_dat$LAST_GIFT_DATE_YEAR), FUN=mean)
+```
+
+```{r}
+#Extra Credit
+donor_dat_filter <- filter(donor_dat, DONOR_AGE >= 18 | is.na(DONOR_AGE))
+
+donor_dat_filter$DONOR_AGE_mi = donor_dat_filter$DONOR_AGE
+donor_dat_filter$DONOR_AGE_mi_imp = as.logical(donor_dat_filter$DONOR_AGE)
+donor_dat_filter$DONOR_AGE_mi_imp[is.na(donor_dat_filter$DONOR_AGE_mi_imp)] <- FALSE
+
+donor_dat_imp <- dplyr::select(donor_dat_filter, c(DONOR_AGE_mi, MONTHS_SINCE_ORIGIN, IN_HOUSE,
+PEP_STAR, LIFETIME_CARD_PROM, LIFETIME_PROM, MONTHS_SINCE_FIRST_GIFT, DONOR_AGE_mi_imp))
+zap_formats(donor_dat_imp)
+str(donor_dat_imp)
+```
+
+```{r}
+#Extra Credit
+#1a. Show here your R code for how you would use K-nearest neighbor (kNN) to impute the missing values of 
+#DONOR_AGE using kNN() from the VIM package.  Use the same subsample requirements used in Task 2.
+set.seed(12345)
+donor_dat_imp <- kNN(donor_dat_imp, variable=c('DONOR_AGE_mi'), k=1, weightDist=TRUE)
+
+favstats(donor_dat_imp$DONOR_AGE_mi)
+```
+
+```{r}
+favstats(donor_dat_filter$DONOR_AGE)
+```
+
+```{r}
+donor_dat_imp
+```
+
+```{r}
+cor.test(DONOR_AGE_mi ~ MONTHS_SINCE_ORIGIN, data = donor_dat_imp)
+```
+```{r}
+save(donor_master, file="C:\\Users\\rcc_0\\OneDrive\\Desktop\\Crawford_from_R.RData")
+``` ~
