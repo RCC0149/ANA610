@@ -1,0 +1,148 @@
+---
+title: "ANA 610-Homework 4"
+author: "Randall Crawford"
+date: "12/24/2024"
+output: word_document
+editor_options: 
+  markdown: 
+    wrap: sentence
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# Load and install required packages
+library(knitr)
+library(mosaic)
+library(effsize)
+library(supernova)
+library(lsr)
+library(dplyr)
+library(ggplot2)
+library(ggformula)
+library(data.table)
+library(haven)
+library(tidyverse)
+library(tidyr)
+library(lubridate)
+
+## Read In Fortune Data Files
+
+### Fortune .csv File
+myDataLocation <- "C:\\Program Files\\R\\ANA 610\\Module 4\\Homework 4\\Data"
+setwd(myDataLocation)
+credit_dat <- read.csv(file = "fortune_credit.csv", header = TRUE)
+
+
+### Fortune .sas7bdat Files
+acct_path <- "C:\\Program Files\\R\\ANA 610\\Module 4\\Homework 4\\Data\\fortune_acct.sas7bdat"
+acct_sas <- haven::read_sas(acct_path)
+acct_dat <- as.data.frame(acct_sas)
+
+attrition_path <- "C:\\Program Files\\R\\ANA 610\\Module 4\\Homework 4\\Data\\fortune_attrition.sas7bdat"
+attrition_sas <- haven::read_sas(attrition_path)
+attrition_dat <- as.data.frame(attrition_sas)
+
+hr_path <- "C:\\Program Files\\R\\ANA 610\\Module 4\\Homework 4\\Data\\fortune_hr.sas7bdat"
+hr_sas <- haven::read_sas(hr_path)
+hr_dat <- as.data.frame(hr_sas)
+
+survey_path <- "C:\\Program Files\\R\\ANA 610\\Module 4\\Homework 4\\Data\\fortune_survey.sas7bdat"
+survey_sas <- haven::read_sas(survey_path)
+survey_dat <- as.data.frame(survey_sas)
+```
+
+```{r}
+#Overview of Donor data files.
+str(credit_dat)
+head(credit_dat, 10)
+str(acct_dat)
+head(acct_dat, 10)
+str(attrition_dat)
+head(attrition_dat, 10)
+str(hr_dat)
+head(hr_dat, 10)
+str(survey_dat)
+head(survey_dat, 10)
+```
+
+```{r}
+#Covert acct_dat ssn to a numeric variable.
+acct_dat$ssn <- as.numeric(gsub('-', '', acct_dat$ssn))
+str(acct_dat)
+head(acct_dat$ssn)
+```
+```{r}
+#Put credit_dat and acct_dat into list.
+ssn_list <- list(credit_dat, acct_dat)
+
+#Merge data frames in the list.
+ssn_dat <- ssn_list %>% reduce(full_join, by='ssn')
+
+str(ssn_dat)
+head(ssn_dat)
+```
+```{r}
+#Put all data frames into list.
+fortune_list <- list(ssn_dat, attrition_dat, hr_dat, survey_dat)
+
+#Merge all data frames in list.
+fortune_master <- fortune_list %>% reduce(full_join, by='employee_no')
+
+#Add NEW_VARIABLE with "I did it again!" value to fortune_master data set.
+fortune_master$NEW_VARIABLE <- "I did it again!"
+
+str(fortune_master)
+head(select(fortune_master, employee_no, NEW_VARIABLE), 10)
+```
+```{r}
+#Save fortune_master dataframe as a .RData file.
+save(fortune_master, file="C:\\Users\\rcc_0\\OneDrive\\Desktop\\Crawford_from_R.RData")
+```
+
+```{r}
+#fortune_master dataframe row count.
+nrow(fortune_master)
+```
+
+```{r}
+#Deduplicate fortune_master data frame.
+Deduplicate <- dplyr::distinct(fortune_master, employee_no, .keep_all = TRUE)
+nrow(Deduplicate)
+```
+
+```{r}
+fortune_master2 <- Deduplicate
+#Create AGE and TENURE variables.
+present = ymd("2018-06-01")
+int <- interval(ymd(fortune_master2$birth_dt), present)
+fortune_master2$AGE <- floor(time_length(int, "year"))
+
+int1 <- interval(ymd(fortune_master2$hire_dt), present)
+int2 <- interval(ymd(fortune_master2$hire_dt), fortune_master2$depart_dt)  
+fortune_master2$TENURE <- ifelse(is.na(fortune_master2$depart_dt), floor(time_length(int1, "year")), floor(time_length(int2, "year")))
+
+str(fortune_master2)
+head(select(fortune_master2, birth_dt, hire_dt, depart_dt, AGE, TENURE), 500)
+```
+
+```{r}
+favstats(fortune_master2$AGE)
+```
+
+```{r}
+favstats(fortune_master2$TENURE)
+```
+
+```{r}
+fortune_master3 <- fortune_master2
+#Create the ATT_Q variable.
+fortune_master3$ATT_Q <- ifelse(is.na(fortune_master3$BusinessTravel), "", ifelse(is.na(fortune_master3$depart_dt), 0, 1))
+
+str(fortune_master3)
+head(select(fortune_master3, BusinessTravel, depart_dt, ATT_Q), 500)
+```
+
+```{r}
+tally(fortune_master3$ATT_Q)
+```
